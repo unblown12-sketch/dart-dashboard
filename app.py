@@ -182,17 +182,26 @@ if "df_cfs" in st.session_state or "df_ofs" in st.session_state:
 
     tabs = st.tabs(tab_labels)
 
-    for tab, df in zip(tabs, tab_dfs):
+    for tab_idx, (tab, df) in enumerate(zip(tabs, tab_dfs)):
         with tab:
-            # 핵심지표 카드
-            key_accounts = ["자산총계", "부채총계", "자본총계", "매출액", "영업이익", "당기순이익"]
+            # 핵심지표 카드 (기업마다 계정명이 다를 수 있어서 유사 계정도 포함)
+            METRIC_ALIASES = {
+                "매출액": ["매출액", "영업수익", "수익(매출액)", "매출"],
+                "영업이익": ["영업이익", "영업손익", "영업이익(손실)"],
+                "당기순이익": ["당기순이익", "당기순손익", "당기순이익(손실)", "분기순이익"],
+                "자산총계": ["자산총계"],
+                "부채총계": ["부채총계"],
+                "자본총계": ["자본총계"],
+            }
             metrics = {}
             for _, row in df.iterrows():
-                if row.get("account_nm") in key_accounts:
-                    metrics[row["account_nm"]] = row.get("thstrm_amount", "0")
+                acc_nm = row.get("account_nm", "")
+                for label, aliases in METRIC_ALIASES.items():
+                    if acc_nm in aliases and label not in metrics:
+                        metrics[label] = row.get("thstrm_amount", "0")
 
             cols = st.columns(6)
-            for i, acc in enumerate(key_accounts):
+            for i, acc in enumerate(["자산총계", "부채총계", "자본총계", "매출액", "영업이익", "당기순이익"]):
                 val = fmt_amount(metrics.get(acc, 0))
                 cols[i].metric(acc, val)
 
@@ -241,7 +250,7 @@ if "df_cfs" in st.session_state or "df_ofs" in st.session_state:
                             data=excel_buf.getvalue(),
                             file_name=f"{corp_name}_{year}_{fs_name}.xlsx",
                             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                            key=f"dl_{fs_name}_{tab_labels.index(list(zip(tabs, tab_dfs))[list(tab_dfs).index(df)][1] if False else '')}"
+                            key=f"dl_{tab_idx}_{fs_name}"
                         )
 
     # AI 분석용 프롬프트
